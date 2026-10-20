@@ -312,6 +312,28 @@
       }
       #contador { padding: 0 12px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; color: #fff; }
 
+      /* Aviso de versao nova */
+      #aviso {
+        position: fixed;
+        left: 50%;
+        top: max(14px, env(safe-area-inset-top));
+        transform: translateX(-50%);
+        width: calc(100% - 32px);
+        max-width: 408px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 10px 10px 16px;
+        border-radius: 18px;
+        background: rgba(28, 28, 36, .97);
+        border: 1px solid var(--borda);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        z-index: 15;
+      }
+      #aviso[hidden] { display: none; }
+      #aviso span { flex: 1; font-size: 14px; }
+
       .modal-content { background: #17171f; border: 1px solid var(--borda); border-radius: 22px; }
       .modal-header, .modal-footer { border-color: var(--borda); }
     </style>
@@ -402,7 +424,7 @@
         </button>
       </section>
 
-      <p class="versao">versão 8</p>
+      <p class="versao">versão 9</p>
 
       <div class="barra-acao">
         <button id="ok" type="button" disabled>
@@ -410,6 +432,12 @@
         </button>
       </div>
     </main>
+
+    <div id="aviso" role="status" hidden>
+      <i class="bi bi-stars" style="color: var(--amarelo)"></i>
+      <span>Tem uma versão nova do app</span>
+      <button id="atualizar" type="button" class="btn btn-light btn-sm rounded-pill px-3 fw-semibold">Atualizar</button>
+    </div>
 
     <div id="palco" class="preencher">
       <div id="faixa"></div>
@@ -592,6 +620,7 @@
         if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
         travaTela?.release().catch(() => {});
         travaTela = null;
+        verificarVersao();
       }
 
       // Tocar na tela mostra os controles por alguns segundos.
@@ -661,6 +690,30 @@
       });
 
       if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+
+      // ---- Atualizacao automatica ----
+      // A publicacao troca o marcador abaixo pelo codigo do commit e grava o mesmo
+      // codigo em versao.txt. Quando o app abre ou volta para a tela, compara
+      // os dois: se mudou, recarrega sozinho. Com fotos escolhidas, recarregar
+      // perderia a selecao, entao so mostra o aviso com o botao Atualizar.
+      const VERSAO = '__VERSAO__';
+
+      async function verificarVersao() {
+        if (VERSAO.startsWith('__')) return; // rodando fora da publicacao
+        try {
+          const r = await fetch(`./versao.txt?t=${Date.now()}`, { cache: 'no-store' });
+          if (!r.ok) return;
+          const publicada = (await r.text()).trim();
+          if (!publicada || publicada === VERSAO) return;
+          if (!urls.length && !palco.classList.contains('ativo')) location.reload();
+          else $('aviso').hidden = palco.classList.contains('ativo');
+        } catch {}
+      }
+
+      $('atualizar').addEventListener('click', () => location.reload());
+      verificarVersao();
+      document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && verificarVersao());
+      setInterval(verificarVersao, 5 * 60 * 1000);
     </script>
   </body>
 </html>

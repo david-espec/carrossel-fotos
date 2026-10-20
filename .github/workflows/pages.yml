@@ -25,6 +25,12 @@ jobs:
       - uses: actions/configure-pages@v5
         with:
           enablement: true
+      # O app compara esta marca com versao.txt para saber quando ha uma
+      # versao nova e se atualizar sozinho.
+      - name: Marcar a versao
+        run: |
+          echo "$GITHUB_SHA" > versao.txt
+          sed -i "s/__VERSAO__/$GITHUB_SHA/g" index.html
       # O app e um HTML so, sem build: publica a pasta como esta.
       - uses: actions/upload-pages-artifact@v3
         with:

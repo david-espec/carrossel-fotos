@@ -1,6 +1,6 @@
 // Rede primeiro: quem esta online sempre recebe a versao nova. Sem internet,
 // o app abre com a ultima copia guardada.
-const CACHE = 'carrossel-v1';
+const CACHE = 'carrossel-v2';
 const ARQUIVOS = [
   './',
   './manifest.webmanifest',
@@ -17,12 +17,21 @@ self.addEventListener('install', (e) => {
   self.skipWaiting();
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ARQUIVOS)));
 });
-self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener('activate', (e) =>
+  e.waitUntil(
+    caches
+      .keys()
+      .then((nomes) => Promise.all(nomes.filter((n) => n !== CACHE).map((n) => caches.delete(n))))
+      .then(() => self.clients.claim())
+  )
+);
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || !e.request.url.startsWith('http')) return;
   e.respondWith(
-    fetch(e.request)
+    // no-cache: sempre confere com o servidor, em vez de confiar na copia que
+    // o navegador guarda por alguns minutos.
+    fetch(new Request(e.request.url, { cache: 'no-cache' }))
       .then((resposta) => {
         if (resposta.ok) {
           const copia = resposta.clone();
