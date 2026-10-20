@@ -7,9 +7,9 @@ como na galeria do celular). Depois da última, volta para a primeira.
 
 - Toque na tela para **Pausar** ou **Sair**.
 - Escolha a velocidade (quanto tempo cada foto fica na tela) e se a foto deve preencher a tela.
-- **Baixar como vídeo** grava as fotos passando num vídeo em pé (1080×1920) para salvar ou compartilhar.
+- **Baixar aplicativo** instala o Carrossel no celular. No Android abre o pedido de instalação; no iPhone mostra o passo a passo pelo Safari. Instalado, funciona até sem internet.
 - As fotos não saem do celular: nada é enviado para servidor nenhum.
 - Dá para instalar com "Adicionar à tela inicial".
 
-É um único `index.html`, sem build e sem dependências. Cada push na `main`
+É um único `index.html`, sem build. O Bootstrap e os ícones ficam em `vendor/`, dentro do próprio repositório. Cada push na `main`
 publica no GitHub Pages (Settings → Pages → Source: GitHub Actions).

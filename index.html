@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-bs-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -11,54 +11,32 @@
     <meta name="apple-mobile-web-app-title" content="Carrossel" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="./icon.svg" />
-    <link rel="apple-touch-icon" href="./icon.svg" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
+    <link rel="stylesheet" href="./vendor/bootstrap.min.css" />
+    <link rel="stylesheet" href="./vendor/bootstrap-icons.min.css" />
     <title>Carrossel de Fotos</title>
     <style>
-      * { box-sizing: border-box; margin: 0; padding: 0; }
       html, body {
         height: 100%;
         background: #000;
-        color: #f2f2f2;
-        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
         -webkit-tap-highlight-color: transparent;
         overscroll-behavior: none;
       }
-      button { font: inherit; color: inherit; border: 0; cursor: pointer; }
 
       /* Tela inicial: escolher as fotos */
       #inicio {
         min-height: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 20px;
+        max-width: 372px;
         padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
-        text-align: center;
       }
-      #inicio h1 { font-size: 26px; font-weight: 700; }
-      #inicio p { color: #9a9a9a; font-size: 15px; max-width: 320px; line-height: 1.4; }
-      .botao {
-        width: 100%;
-        max-width: 340px;
-        padding: 16px 20px;
-        border-radius: 14px;
-        font-size: 17px;
-        font-weight: 600;
-        background: #222;
-      }
-      .botao.principal { background: #ffd166; color: #111; }
-      .botao:disabled { opacity: .35; }
-
       #miniaturas {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
         gap: 6px;
-        width: 100%;
-        max-width: 340px;
         max-height: 40vh;
         overflow-y: auto;
       }
+      #miniaturas:empty { display: none; }
       #miniaturas img {
         width: 100%;
         aspect-ratio: 1;
@@ -66,20 +44,7 @@
         border-radius: 8px;
         background: #1a1a1a;
       }
-
-      .opcoes { width: 100%; max-width: 340px; display: grid; gap: 14px; text-align: left; }
-      .opcoes label { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; }
-      .versao { color: #555; font-size: 12px; }
-      .opcoes select {
-        padding: 10px 12px;
-        border-radius: 10px;
-        border: 1px solid #333;
-        background: #1a1a1a;
-        color: #f2f2f2;
-        font: inherit;
-        font-size: 15px;
-      }
-      .opcoes input[type='checkbox'] { width: 22px; height: 22px; accent-color: #ffd166; }
+      .form-check-input:checked { background-color: #ffc107; border-color: #ffc107; }
 
       /* Carrossel em tela cheia */
       #palco {
@@ -116,9 +81,6 @@
         left: 0;
         right: 0;
         bottom: 0;
-        display: flex;
-        justify-content: center;
-        gap: 12px;
         padding: 16px 16px max(20px, env(safe-area-inset-bottom));
         background: linear-gradient(transparent, rgba(0, 0, 0, .7));
         opacity: 0;
@@ -126,50 +88,26 @@
         transition: opacity .25s;
       }
       #palco.mostrar #controles { opacity: 1; pointer-events: auto; }
-
-      /* Geracao do video para baixar */
-      #gerando {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 18px;
-        padding: 24px 16px;
-        background: #000;
-        text-align: center;
-      }
-      #gerando[hidden] { display: none; }
-      #gerando p { color: #9a9a9a; font-size: 14px; max-width: 320px; line-height: 1.4; }
-      #gerando strong { font-size: 18px; }
-      #barra { width: 100%; max-width: 340px; height: 8px; border-radius: 999px; background: #222; overflow: hidden; }
-      #barra div { height: 100%; width: 0; background: #ffd166; }
-      #previa { width: 100%; max-width: 200px; aspect-ratio: 9 / 16; border-radius: 12px; background: #111; }
-      #controles button {
-        padding: 12px 18px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, .16);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        font-size: 15px;
-        font-weight: 600;
-      }
     </style>
   </head>
   <body>
-    <main id="inicio">
-      <h1>Carrossel de Fotos</h1>
-      <p>Escolha as fotos da galeria e aperte OK. Elas passam uma de cada vez, da direita para a esquerda, em tela cheia.</p>
+    <main id="inicio" class="container d-flex flex-column justify-content-center gap-3 text-center">
+      <h1 class="h3 fw-bold mb-0">Carrossel de Fotos</h1>
+      <p class="text-secondary mb-1">
+        Escolha as fotos da galeria e aperte OK. Elas passam uma de cada vez, da direita para a esquerda, em tela cheia.
+      </p>
 
       <input id="arquivos" type="file" accept="image/*" multiple hidden />
-      <button id="escolher" class="botao">Escolher fotos</button>
+      <button id="escolher" type="button" class="btn btn-outline-light btn-lg w-100">
+        <i class="bi bi-images me-2"></i>Escolher fotos
+      </button>
 
       <div id="miniaturas"></div>
 
-      <div class="opcoes">
-        <label>Velocidade
-          <select id="tempo">
+      <div class="text-start d-grid gap-3">
+        <div>
+          <label for="tempo" class="form-label mb-1">Velocidade</label>
+          <select id="tempo" class="form-select form-select-lg">
             <option value="1">Muito rápida (1 s)</option>
             <option value="2">Rápida (2 s)</option>
             <option value="3">Um pouco rápida (3 s)</option>
@@ -178,33 +116,66 @@
             <option value="8">Mais devagar (8 s)</option>
             <option value="12">Bem devagar (12 s)</option>
           </select>
-        </label>
-        <label>Preencher a tela (corta as bordas) <input id="preencher" type="checkbox" checked /></label>
-        <label>Passar deslizando, como na galeria <input id="deslizar" type="checkbox" /></label>
+        </div>
+        <div class="form-check form-switch">
+          <input id="preencher" class="form-check-input" type="checkbox" role="switch" checked />
+          <label for="preencher" class="form-check-label">Preencher a tela (corta as bordas)</label>
+        </div>
+        <div class="form-check form-switch">
+          <input id="deslizar" class="form-check-input" type="checkbox" role="switch" />
+          <label for="deslizar" class="form-check-label">Passar deslizando, como na galeria</label>
+        </div>
       </div>
 
-      <button id="ok" class="botao principal" disabled>OK</button>
-      <button id="baixar" class="botao" disabled>Baixar como vídeo</button>
-      <p class="versao">versão 5</p>
+      <button id="ok" type="button" class="btn btn-warning btn-lg w-100 fw-semibold" disabled>
+        <i class="bi bi-play-fill me-1"></i><span id="okTexto">OK</span>
+      </button>
+      <button id="instalar" type="button" class="btn btn-success btn-lg w-100">
+        <i class="bi bi-download me-2"></i>Baixar aplicativo
+      </button>
+      <p class="text-body-tertiary small mb-0">versão 6</p>
     </main>
 
     <div id="palco" class="preencher">
       <div id="faixa"></div>
-      <div id="controles">
-        <button id="pausar">Pausar</button>
-        <button id="sair">Sair</button>
+      <div id="controles" class="d-flex justify-content-center gap-2">
+        <button id="pausar" type="button" class="btn btn-light rounded-pill px-4">
+          <i class="bi bi-pause-fill me-1"></i><span>Pausar</span>
+        </button>
+        <button id="sair" type="button" class="btn btn-outline-light rounded-pill px-4">
+          <i class="bi bi-x-lg me-1"></i>Sair
+        </button>
       </div>
     </div>
 
-    <div id="gerando" hidden>
-      <canvas id="previa" width="1080" height="1920"></canvas>
-      <strong id="gerandoTitulo">Gerando o vídeo…</strong>
-      <div id="barra"><div></div></div>
-      <p id="gerandoTexto">Deixe esta tela aberta: o vídeo é gravado no tempo real das fotos.</p>
-      <button id="salvar" class="botao principal" hidden>Salvar vídeo</button>
-      <button id="cancelar" class="botao">Cancelar</button>
+    <!-- Passo a passo para instalar, onde o navegador nao instala sozinho -->
+    <div id="comoInstalar" class="modal fade" tabindex="-1" aria-labelledby="comoInstalarTitulo" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 id="comoInstalarTitulo" class="modal-title h5">Instalar o Carrossel</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+          </div>
+          <div class="modal-body">
+            <ol id="passosIphone" class="mb-0 lh-lg" hidden>
+              <li>Abra esta página no <strong>Safari</strong>.</li>
+              <li>Toque em <strong>Compartilhar</strong> <i class="bi bi-box-arrow-up"></i>, na barra de baixo.</li>
+              <li>Escolha <strong>Adicionar à Tela de Início</strong> e toque em <strong>Adicionar</strong>.</li>
+            </ol>
+            <ol id="passosOutros" class="mb-0 lh-lg" hidden>
+              <li>Abra o menu do navegador <i class="bi bi-three-dots-vertical"></i>.</li>
+              <li>Toque em <strong>Instalar aplicativo</strong> ou <strong>Adicionar à tela inicial</strong>.</li>
+              <li>Confirme. O Carrossel aparece junto dos seus apps.</li>
+            </ol>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-warning" data-bs-dismiss="modal">Entendi</button>
+          </div>
+        </div>
+      </div>
     </div>
 
+    <script src="./vendor/bootstrap.bundle.min.js"></script>
     <script>
       const $ = (id) => document.getElementById(id);
       const inicio = $('inicio');
@@ -239,8 +210,7 @@
           ...urls.map((src) => Object.assign(new Image(), { src, loading: 'lazy', decoding: 'async' }))
         );
         ok.disabled = false;
-        $('baixar').disabled = false;
-        ok.textContent = `OK (${urls.length} foto${urls.length > 1 ? 's' : ''})`;
+        $('okTexto').textContent = `OK (${urls.length} foto${urls.length > 1 ? 's' : ''})`;
       });
 
       preencher.addEventListener('change', () => palco.classList.toggle('preencher', preencher.checked));
@@ -255,9 +225,8 @@
         );
         faixa.replaceChildren(...imgs);
         atual = 0;
-        pausado = false;
-        pausar.textContent = 'Pausar';
-        inicio.hidden = true;
+        definirPausado(false);
+        inicio.classList.replace('d-flex', 'd-none');
         palco.classList.add('ativo');
         posicionar();
         palco.requestFullscreen?.().catch(() => {});
@@ -302,7 +271,7 @@
         clearTimeout(proxima);
         palco.classList.remove('ativo', 'mostrar');
         faixa.replaceChildren();
-        inicio.hidden = false;
+        inicio.classList.replace('d-none', 'd-flex');
         if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
         travaTela?.release().catch(() => {});
         travaTela = null;
@@ -316,153 +285,17 @@
         esconderControles = setTimeout(() => palco.classList.remove('mostrar'), 3000);
       });
 
+      function definirPausado(valor) {
+        pausado = valor;
+        pausar.querySelector('i').className = `bi ${pausado ? 'bi-play-fill' : 'bi-pause-fill'} me-1`;
+        pausar.querySelector('span').textContent = pausado ? 'Continuar' : 'Pausar';
+      }
+
       pausar.addEventListener('click', () => {
-        pausado = !pausado;
-        pausar.textContent = pausado ? 'Continuar' : 'Pausar';
+        definirPausado(!pausado);
         agendar();
       });
       $('sair').addEventListener('click', sair);
-
-      // ---- Baixar como video ----
-      // As fotos sao desenhadas num canvas em pe (1080x1920), do mesmo jeito que
-      // passam na tela, e o MediaRecorder grava o canvas. Cada foto aparece uma
-      // vez, na ordem; o video termina na ultima.
-      const previa = $('previa');
-      const gerando = $('gerando');
-      const salvar = $('salvar');
-      let gravacao = null; // { gravador, cancelado } da geracao em andamento
-      let video = null; // { blob, nome }
-
-      $('baixar').addEventListener('click', gerarVideo);
-      $('cancelar').addEventListener('click', fecharGerando);
-      salvar.addEventListener('click', salvarVideo);
-
-      function formatoDoVideo() {
-        if (!window.MediaRecorder) return null;
-        const tipos = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
-        return tipos.find((t) => MediaRecorder.isTypeSupported(t)) ?? null;
-      }
-
-      function carregar(src) {
-        const img = new Image();
-        img.src = src;
-        return img.decode().then(() => img);
-      }
-
-      function desenharFoto(ctx, img, x) {
-        const { width: W, height: H } = ctx.canvas;
-        const escala = (preencher.checked ? Math.max : Math.min)(W / img.naturalWidth, H / img.naturalHeight);
-        const w = img.naturalWidth * escala;
-        const h = img.naturalHeight * escala;
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(x, 0, W, H);
-        ctx.clip();
-        ctx.drawImage(img, x + (W - w) / 2, (H - h) / 2, w, h);
-        ctx.restore();
-      }
-
-      async function gerarVideo() {
-        const tipo = formatoDoVideo();
-        if (!tipo || !previa.captureStream) {
-          alert('Este navegador não consegue gerar vídeo. Tente pelo Chrome ou pelo Safari atualizado.');
-          return;
-        }
-        video = null;
-        salvar.hidden = true;
-        $('cancelar').textContent = 'Cancelar';
-        $('gerandoTitulo').textContent = 'Gerando o vídeo…';
-        $('gerandoTexto').textContent = 'Deixe esta tela aberta: o vídeo é gravado no tempo real das fotos.';
-        $('barra').firstElementChild.style.width = '0';
-        gerando.hidden = false;
-        manterTelaLigada();
-
-        const atualGravacao = (gravacao = { gravador: null, cancelado: false });
-        const fotos = await Promise.all(urls.map(carregar));
-        if (atualGravacao.cancelado) return;
-        const ctx = previa.getContext('2d');
-        const W = previa.width;
-        const espera = esperaMs();
-        const deslize = deslizar.checked ? DESLIZE_MS : 0;
-        const trecho = espera + deslize;
-        const total = fotos.length * espera + (fotos.length - 1) * deslize;
-
-        const gravador = new MediaRecorder(previa.captureStream(30), { mimeType: tipo, videoBitsPerSecond: 8_000_000 });
-        const pedacos = [];
-        atualGravacao.gravador = gravador;
-        gravador.ondataavailable = (e) => e.data.size && pedacos.push(e.data);
-        gravador.onstop = () => {
-          if (atualGravacao.cancelado) return;
-          const extensao = tipo.startsWith('video/mp4') ? 'mp4' : 'webm';
-          video = { blob: new Blob(pedacos, { type: tipo.split(';')[0] }), nome: `carrossel.${extensao}` };
-          $('gerandoTitulo').textContent = 'Vídeo pronto!';
-          $('gerandoTexto').textContent = 'Toque em Salvar vídeo para guardar no celular.';
-          salvar.hidden = false;
-          $('cancelar').textContent = 'Fechar';
-        };
-
-        const desenhar = (t) => {
-          ctx.fillStyle = '#000';
-          ctx.fillRect(0, 0, W, previa.height);
-          const i = Math.min(Math.floor(t / trecho), fotos.length - 1);
-          const dentro = t - i * trecho;
-          if (dentro <= espera || i === fotos.length - 1) {
-            desenharFoto(ctx, fotos[i], 0);
-          } else {
-            const p = (dentro - espera) / deslize;
-            const suave = 1 - Math.pow(1 - p, 3);
-            desenharFoto(ctx, fotos[i], -suave * W);
-            desenharFoto(ctx, fotos[i + 1], (1 - suave) * W);
-          }
-        };
-
-        desenhar(0);
-        gravador.start(1000);
-        const inicioGravacao = performance.now();
-        const quadro = () => {
-          if (atualGravacao.cancelado) return;
-          const t = performance.now() - inicioGravacao;
-          desenhar(Math.min(t, total));
-          $('barra').firstElementChild.style.width = `${Math.min(100, (t / total) * 100)}%`;
-          if (t < total) requestAnimationFrame(quadro);
-          else setTimeout(() => gravador.state !== 'inactive' && gravador.stop(), 200);
-        };
-        requestAnimationFrame(quadro);
-      }
-
-      function fecharGerando() {
-        if (gravacao) {
-          gravacao.cancelado = !video;
-          if (gravacao.gravador && gravacao.gravador.state !== 'inactive') gravacao.gravador.stop();
-          gravacao = null;
-        }
-        gerando.hidden = true;
-        travaTela?.release().catch(() => {});
-        travaTela = null;
-      }
-
-      // No celular, compartilhar abre a opcao "Salvar video" direto na galeria.
-      // Onde nao da, baixa o arquivo.
-      async function salvarVideo() {
-        if (!video) return;
-        const arquivo = new File([video.blob], video.nome, { type: video.blob.type });
-        if (navigator.canShare?.({ files: [arquivo] })) {
-          try {
-            await navigator.share({ files: [arquivo] });
-            return;
-          } catch (e) {
-            if (e.name === 'AbortError') return;
-          }
-        }
-        const link = Object.assign(document.createElement('a'), {
-          href: URL.createObjectURL(video.blob),
-          download: video.nome,
-        });
-        document.body.append(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(link.href), 60_000);
-      }
 
       // Mantem a tela acesa enquanto as fotos passam (onde o navegador permitir).
       async function manterTelaLigada() {
@@ -471,9 +304,46 @@
         } catch {}
       }
       document.addEventListener('visibilitychange', () => {
-        const emUso = palco.classList.contains('ativo') || !gerando.hidden;
-        if (document.visibilityState === 'visible' && emUso) manterTelaLigada();
+        if (document.visibilityState === 'visible' && palco.classList.contains('ativo')) manterTelaLigada();
       });
+
+      // ---- Baixar aplicativo ----
+      // No Android/Chrome o navegador oferece a instalacao e o botao abre esse
+      // pedido. No iPhone nao existe esse pedido, entao o botao mostra o passo a
+      // passo pelo Safari. Ja instalado, o botao some.
+      const instalar = $('instalar');
+      let pedidoInstalacao = null;
+
+      const jaInstalado = () =>
+        matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone === true;
+      const ehIphone = () =>
+        /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+      if (jaInstalado()) instalar.hidden = true;
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        pedidoInstalacao = e;
+      });
+      window.addEventListener('appinstalled', () => {
+        pedidoInstalacao = null;
+        instalar.hidden = true;
+      });
+
+      instalar.addEventListener('click', async () => {
+        if (pedidoInstalacao) {
+          pedidoInstalacao.prompt();
+          await pedidoInstalacao.userChoice;
+          pedidoInstalacao = null;
+          return;
+        }
+        $('passosIphone').hidden = !ehIphone();
+        $('passosOutros').hidden = ehIphone();
+        bootstrap.Modal.getOrCreateInstance($('comoInstalar')).show();
+      });
+
+      if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
     </script>
   </body>
 </html>
