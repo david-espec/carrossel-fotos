@@ -2,7 +2,8 @@
 
 Escolha fotos da galeria do celular, aperte **OK** e elas passam uma de cada
 vez, da direita para a esquerda, em tela cheia: cada foto fica um tempo na tela
-e troca direto para a próxima, sem animação. Depois da última, volta para a primeira.
+e troca direto para a próxima, sem animação (ou, se preferir, desliza rápido
+como na galeria do celular). Depois da última, volta para a primeira.
 
 - Toque na tela para **Pausar** ou **Sair**.
 - Ajuste quanto tempo cada foto fica na tela e se a foto deve preencher a tela antes de começar.

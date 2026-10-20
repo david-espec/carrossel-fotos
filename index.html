@@ -69,6 +69,7 @@
 
       .opcoes { width: 100%; max-width: 340px; display: grid; gap: 14px; text-align: left; }
       .opcoes label { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; }
+      .versao { color: #555; font-size: 12px; }
       .opcoes output { min-width: 34px; text-align: right; color: #9a9a9a; }
       .opcoes input[type='range'] { flex: 1; accent-color: #ffd166; }
       .opcoes input[type='checkbox'] { width: 22px; height: 22px; accent-color: #ffd166; }
@@ -91,6 +92,7 @@
         display: flex;
         will-change: transform;
       }
+      #faixa.deslizando { transition: transform .3s cubic-bezier(.2, .7, .2, 1); }
       #faixa img {
         flex: none;
         width: 100vw;
@@ -141,9 +143,11 @@
       <div class="opcoes">
         <label>Tempo em cada foto <input id="tempo" type="range" min="2" max="15" value="4" /> <output id="tempoTexto">4 s</output></label>
         <label>Preencher a tela (corta as bordas) <input id="preencher" type="checkbox" checked /></label>
+        <label>Passar deslizando, como na galeria <input id="deslizar" type="checkbox" /></label>
       </div>
 
       <button id="ok" class="botao principal" disabled>OK</button>
+      <p class="versao">versão 4</p>
     </main>
 
     <div id="palco" class="preencher">
@@ -164,6 +168,7 @@
       const faixa = $('faixa');
       const tempo = $('tempo');
       const preencher = $('preencher');
+      const deslizar = $('deslizar');
       const pausar = $('pausar');
 
       let urls = [];
@@ -173,6 +178,7 @@
       let travaTela = null;
       let esconderControles = 0;
 
+      const DESLIZE_MS = 300; // igual a transicao de #faixa.deslizando
       const esperaMs = () => Number(tempo.value) * 1000;
 
       tempo.addEventListener('input', () => ($('tempoTexto').textContent = `${tempo.value} s`));
@@ -196,7 +202,9 @@
       ok.addEventListener('click', comecar);
 
       function comecar() {
-        const imgs = urls.map((src) =>
+        // A primeira foto vai de novo no fim da faixa, para a volta da ultima
+        // para a primeira tambem poder deslizar para a esquerda.
+        const imgs = [...urls, urls[0]].map((src) =>
           Object.assign(new Image(), { src, decoding: 'async', draggable: false })
         );
         faixa.replaceChildren(...imgs);
@@ -211,21 +219,35 @@
         agendar();
       }
 
-      // A troca e instantanea: a faixa pula direto para a foto da vez.
-      function posicionar() {
+      function posicionar(animado = false) {
+        faixa.classList.toggle('deslizando', animado);
         faixa.style.transform = `translate3d(${-atual * window.innerWidth}px,0,0)`;
       }
 
-      function agendar() {
+      function agendar(extra = 0) {
         clearTimeout(proxima);
-        if (!pausado && urls.length > 1) proxima = setTimeout(avancar, esperaMs());
+        if (!pausado && urls.length > 1) proxima = setTimeout(avancar, esperaMs() + extra);
       }
 
-      // Depois da ultima foto, volta para a primeira.
+      // Depois da ultima foto, volta para a primeira. Sem deslizar, a troca e
+      // instantanea; deslizando, a faixa corre ate a copia da primeira foto e
+      // pula para a original sem ninguem ver.
       function avancar() {
-        atual = (atual + 1) % urls.length;
-        posicionar();
-        agendar();
+        if (!deslizar.checked) {
+          atual = (atual + 1) % urls.length;
+          posicionar();
+          agendar();
+          return;
+        }
+        atual += 1;
+        posicionar(true);
+        if (atual === urls.length) {
+          setTimeout(() => {
+            atual = 0;
+            posicionar();
+          }, DESLIZE_MS);
+        }
+        agendar(DESLIZE_MS);
       }
 
       window.addEventListener('resize', () => palco.classList.contains('ativo') && posicionar());
