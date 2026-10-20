@@ -112,7 +112,9 @@
       #selecionadas { padding: 16px; }
       #selecionadas[hidden] { display: none; }
       .cabecalho-fotos { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-      .cabecalho-fotos strong { font-size: 16px; }
+      .cabecalho-fotos { gap: 8px; }
+      .cabecalho-fotos strong { font-size: 16px; white-space: nowrap; }
+      .cabecalho-fotos .btn { display: inline-flex; align-items: center; white-space: nowrap; }
       .contagem {
         display: inline-grid;
         place-items: center;
@@ -134,7 +136,28 @@
         overflow-y: auto;
         border-radius: 14px;
       }
+      .miniatura { position: relative; }
+      .remover {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 26px;
+        height: 26px;
+        display: none;
+        place-items: center;
+        padding: 0;
+        border: 0;
+        border-radius: 999px;
+        background: rgba(10, 10, 14, .75);
+        color: #fff;
+        font-size: 13px;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+      }
+      #selecionadas.editando .remover { display: grid; }
+      #selecionadas.editando .miniatura img { outline: 2px solid var(--coral); outline-offset: -2px; }
       #miniaturas img {
+        display: block;
         width: 100%;
         aspect-ratio: 1;
         object-fit: cover;
@@ -315,10 +338,15 @@
 
       <section id="selecionadas" class="cartao" hidden>
         <div class="cabecalho-fotos">
-          <strong><span id="contagem" class="contagem">0</span>fotos escolhidas</strong>
-          <button id="trocar" type="button" class="btn btn-sm btn-outline-light rounded-pill px-3">
-            <i class="bi bi-arrow-repeat me-1"></i>Trocar
-          </button>
+          <strong><span id="contagem" class="contagem">0</span><span id="contagemTexto">fotos</span></strong>
+          <div class="d-flex gap-2">
+            <button id="editar" type="button" class="btn btn-sm btn-outline-light rounded-pill px-3">
+              <i class="bi bi-pencil me-1"></i><span>Editar</span>
+            </button>
+            <button id="trocar" type="button" class="btn btn-sm btn-outline-light rounded-pill px-3">
+              <i class="bi bi-arrow-repeat me-1"></i>Trocar
+            </button>
+          </div>
         </div>
         <div id="miniaturas"></div>
       </section>
@@ -374,7 +402,7 @@
         </button>
       </section>
 
-      <p class="versao">versão 7</p>
+      <p class="versao">versão 8</p>
 
       <div class="barra-acao">
         <button id="ok" type="button" disabled>
@@ -455,15 +483,50 @@
         if (!novas.length) return;
         urls.forEach((u) => URL.revokeObjectURL(u));
         urls = novas.map((f) => URL.createObjectURL(f));
-        miniaturas.replaceChildren(
-          ...urls.map((src) => Object.assign(new Image(), { src, loading: 'lazy', decoding: 'async' }))
-        );
-        $('escolher').hidden = true;
-        $('selecionadas').hidden = false;
-        $('contagem').textContent = urls.length;
-        ok.disabled = false;
-        $('okTexto').textContent = `Começar com ${urls.length} foto${urls.length > 1 ? 's' : ''}`;
+        definirEditando(false);
+        mostrarFotos();
         arquivos.value = '';
+      });
+
+      function mostrarFotos() {
+        miniaturas.replaceChildren(
+          ...urls.map((src, i) => {
+            const caixa = document.createElement('div');
+            caixa.className = 'miniatura';
+            caixa.innerHTML = `<button type="button" class="remover" data-i="${i}" aria-label="Remover foto"><i class="bi bi-x-lg"></i></button>`;
+            caixa.prepend(Object.assign(new Image(), { src, loading: 'lazy', decoding: 'async' }));
+            return caixa;
+          })
+        );
+        const tem = urls.length > 0;
+        $('escolher').hidden = tem;
+        $('selecionadas').hidden = !tem;
+        $('contagem').textContent = urls.length;
+        $('contagemTexto').textContent = urls.length === 1 ? 'foto' : 'fotos';
+        ok.disabled = !tem;
+        $('okTexto').textContent = tem
+          ? `Começar com ${urls.length} foto${urls.length > 1 ? 's' : ''}`
+          : 'Escolha as fotos';
+      }
+
+      // Editar: cada miniatura ganha um X para tirar a foto da lista.
+      function definirEditando(valor) {
+        $('selecionadas').classList.toggle('editando', valor);
+        $('editar').querySelector('i').className = `bi ${valor ? 'bi-check-lg' : 'bi-pencil'} me-1`;
+        $('editar').querySelector('span').textContent = valor ? 'Concluir' : 'Editar';
+      }
+
+      $('editar').addEventListener('click', () =>
+        definirEditando(!$('selecionadas').classList.contains('editando'))
+      );
+
+      miniaturas.addEventListener('click', (e) => {
+        const botao = e.target.closest('.remover');
+        if (!botao) return;
+        const [removida] = urls.splice(Number(botao.dataset.i), 1);
+        URL.revokeObjectURL(removida);
+        if (!urls.length) definirEditando(false);
+        mostrarFotos();
       });
 
       preencher.addEventListener('change', () => palco.classList.toggle('preencher', preencher.checked));
