@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#000000" />
-    <meta name="description" content="Escolha fotos da galeria e veja passando devagar, em tela cheia." />
+    <meta name="description" content="Escolha fotos da galeria e veja passando uma de cada vez, em tela cheia." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -69,6 +69,7 @@
 
       .opcoes { width: 100%; max-width: 340px; display: grid; gap: 14px; text-align: left; }
       .opcoes label { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; }
+      .opcoes output { min-width: 34px; text-align: right; color: #9a9a9a; }
       .opcoes input[type='range'] { flex: 1; accent-color: #ffd166; }
       .opcoes input[type='checkbox'] { width: 22px; height: 22px; accent-color: #ffd166; }
 
@@ -90,6 +91,7 @@
         display: flex;
         will-change: transform;
       }
+      #faixa.deslizando { transition: transform .9s cubic-bezier(.45, 0, .2, 1); }
       #faixa img {
         flex: none;
         width: 100vw;
@@ -130,7 +132,7 @@
   <body>
     <main id="inicio">
       <h1>Carrossel de Fotos</h1>
-      <p>Escolha as fotos da galeria e aperte OK. Elas passam devagar, da direita para a esquerda, em tela cheia.</p>
+      <p>Escolha as fotos da galeria e aperte OK. Elas passam uma de cada vez, da direita para a esquerda, em tela cheia.</p>
 
       <input id="arquivos" type="file" accept="image/*" multiple hidden />
       <button id="escolher" class="botao">Escolher fotos</button>
@@ -138,7 +140,7 @@
       <div id="miniaturas"></div>
 
       <div class="opcoes">
-        <label>Velocidade <input id="velocidade" type="range" min="1" max="10" value="3" /></label>
+        <label>Tempo em cada foto <input id="tempo" type="range" min="2" max="15" value="4" /> <output id="tempoTexto">4 s</output></label>
         <label>Preencher a tela (corta as bordas) <input id="preencher" type="checkbox" checked /></label>
       </div>
 
@@ -161,20 +163,21 @@
       const ok = $('ok');
       const palco = $('palco');
       const faixa = $('faixa');
-      const velocidade = $('velocidade');
+      const tempo = $('tempo');
       const preencher = $('preencher');
       const pausar = $('pausar');
 
       let urls = [];
-      let posicao = 0; // em "fotos": 1.5 = metade da segunda foto
+      let atual = 0; // indice da foto na tela
       let pausado = false;
-      let ultimoQuadro = 0;
-      let quadro = 0;
+      let proxima = 0;
       let travaTela = null;
       let esconderControles = 0;
 
-      // Velocidade 1 = uma foto a cada 20s; velocidade 10 = uma foto a cada 2s.
-      const segundosPorFoto = () => 20 / Number(velocidade.value);
+      const DESLIZE_MS = 900; // igual a transicao de #faixa.deslizando
+      const esperaMs = () => Number(tempo.value) * 1000;
+
+      tempo.addEventListener('input', () => ($('tempoTexto').textContent = `${tempo.value} s`));
 
       $('escolher').addEventListener('click', () => arquivos.click());
 
@@ -195,36 +198,51 @@
       ok.addEventListener('click', comecar);
 
       function comecar() {
-        // A lista vai duas vezes na faixa: quando a primeira volta termina, a
-        // segunda esta exatamente no lugar dela e a posicao volta a zero sem salto.
-        const imgs = [...urls, ...urls].map((src) =>
+        // A primeira foto vai de novo no fim da faixa: depois da ultima, a
+        // faixa desliza ate essa copia e volta ao inicio sem ninguem ver o salto.
+        const imgs = [...urls, urls[0]].map((src) =>
           Object.assign(new Image(), { src, decoding: 'async', draggable: false })
         );
         faixa.replaceChildren(...imgs);
-        posicao = 0;
+        atual = 0;
         pausado = false;
         pausar.textContent = 'Pausar';
         inicio.hidden = true;
         palco.classList.add('ativo');
+        posicionar(false);
         palco.requestFullscreen?.().catch(() => {});
         manterTelaLigada();
-        ultimoQuadro = performance.now();
-        quadro = requestAnimationFrame(animar);
+        agendar();
       }
 
-      function animar(agora) {
-        const dt = Math.min(agora - ultimoQuadro, 100) / 1000;
-        ultimoQuadro = agora;
-        if (!pausado) {
-          posicao += dt / segundosPorFoto();
-          if (posicao >= urls.length) posicao -= urls.length;
-        }
-        faixa.style.transform = `translate3d(${-posicao * window.innerWidth}px,0,0)`;
-        quadro = requestAnimationFrame(animar);
+      function posicionar(animado) {
+        faixa.classList.toggle('deslizando', animado);
+        faixa.style.transform = `translate3d(${-atual * window.innerWidth}px,0,0)`;
       }
+
+      // A espera so comeca a contar depois que a foto termina de deslizar.
+      function agendar(extra = 0) {
+        clearTimeout(proxima);
+        if (!pausado && urls.length > 1) proxima = setTimeout(avancar, esperaMs() + extra);
+      }
+
+      function avancar() {
+        atual += 1;
+        posicionar(true);
+        agendar(DESLIZE_MS);
+      }
+
+      faixa.addEventListener('transitionend', () => {
+        if (atual === urls.length) {
+          atual = 0;
+          posicionar(false);
+        }
+      });
+
+      window.addEventListener('resize', () => palco.classList.contains('ativo') && posicionar(false));
 
       function sair() {
-        cancelAnimationFrame(quadro);
+        clearTimeout(proxima);
         palco.classList.remove('ativo', 'mostrar');
         faixa.replaceChildren();
         inicio.hidden = false;
@@ -244,6 +262,7 @@
       pausar.addEventListener('click', () => {
         pausado = !pausado;
         pausar.textContent = pausado ? 'Continuar' : 'Pausar';
+        agendar();
       });
       $('sair').addEventListener('click', sair);
 
