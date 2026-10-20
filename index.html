@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#0b0b10" />
     <meta name="description" content="Escolha fotos da galeria e veja passando uma de cada vez, em tela cheia." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -16,37 +16,219 @@
     <link rel="stylesheet" href="./vendor/bootstrap-icons.min.css" />
     <title>Carrossel de Fotos</title>
     <style>
+      :root {
+        --fundo: #0b0b10;
+        --cartao: rgba(255, 255, 255, .045);
+        --borda: rgba(255, 255, 255, .08);
+        --texto-2: #9b9bab;
+        --amarelo: #ffc65c;
+        --coral: #ff7a59;
+        --azul: #4cc9f0;
+        --destaque: linear-gradient(135deg, var(--amarelo), var(--coral));
+        --bs-body-bg: var(--fundo);
+        --bs-body-font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, system-ui, sans-serif;
+      }
       html, body {
-        height: 100%;
-        background: #000;
+        min-height: 100%;
+        background: var(--fundo);
         -webkit-tap-highlight-color: transparent;
         overscroll-behavior: none;
       }
+      /* Brilho colorido atras da tela inicial */
+      body::before {
+        content: '';
+        position: fixed;
+        inset: -20% -30% auto;
+        height: 70vh;
+        background:
+          radial-gradient(40% 50% at 25% 40%, rgba(255, 122, 89, .28), transparent 70%),
+          radial-gradient(35% 45% at 75% 30%, rgba(76, 201, 240, .22), transparent 70%),
+          radial-gradient(30% 40% at 50% 70%, rgba(255, 198, 92, .16), transparent 70%);
+        filter: blur(20px);
+        pointer-events: none;
+        z-index: -1;
+      }
 
-      /* Tela inicial: escolher as fotos */
+      /* ---- Tela inicial ---- */
       #inicio {
-        min-height: 100%;
-        max-width: 372px;
-        padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+        max-width: 440px;
+        margin: 0 auto;
+        padding: max(20px, env(safe-area-inset-top)) 16px calc(112px + env(safe-area-inset-bottom));
+      }
+      .topo { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+      .topo img { width: 44px; height: 44px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, .4); }
+      .topo h1 { font-size: 20px; font-weight: 700; letter-spacing: -.01em; margin: 0; }
+      .topo p { font-size: 13px; color: var(--texto-2); margin: 0; }
+
+      .cartao {
+        background: var(--cartao);
+        border: 1px solid var(--borda);
+        border-radius: 22px;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+      }
+      .titulo-secao {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--texto-2);
+        margin: 24px 4px 10px;
+      }
+
+      /* Area de escolher fotos, antes de escolher */
+      #escolher {
+        width: 100%;
+        padding: 30px 20px 26px;
+        border: 1.5px dashed rgba(255, 255, 255, .16);
+        color: inherit;
+        text-align: center;
+        transition: transform .15s, border-color .15s;
+      }
+      #escolher:active { transform: scale(.98); border-color: var(--amarelo); }
+      .pilha { position: relative; width: 120px; height: 96px; margin: 0 auto 18px; }
+      .pilha span {
+        position: absolute;
+        top: 8px;
+        left: 30px;
+        width: 60px;
+        height: 80px;
+        border-radius: 12px;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, .35);
+      }
+      .pilha span:nth-child(1) { background: var(--coral); transform: rotate(-14deg) translateX(-26px); opacity: .85; }
+      .pilha span:nth-child(2) { background: var(--azul); transform: rotate(14deg) translateX(26px); opacity: .85; }
+      .pilha span:nth-child(3) {
+        background: var(--amarelo);
+        display: grid;
+        place-items: center;
+        font-size: 26px;
+        color: #1b1b22;
+      }
+      #escolher strong { display: block; font-size: 18px; font-weight: 700; }
+      #escolher small { color: var(--texto-2); font-size: 14px; }
+
+      /* Depois de escolher */
+      #selecionadas { padding: 16px; }
+      #selecionadas[hidden] { display: none; }
+      .cabecalho-fotos { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+      .cabecalho-fotos strong { font-size: 16px; }
+      .contagem {
+        display: inline-grid;
+        place-items: center;
+        min-width: 26px;
+        height: 26px;
+        padding: 0 8px;
+        margin-right: 8px;
+        border-radius: 999px;
+        background: var(--destaque);
+        color: #1b1b22;
+        font-size: 13px;
+        font-weight: 700;
       }
       #miniaturas {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+        grid-template-columns: repeat(4, 1fr);
         gap: 6px;
-        max-height: 40vh;
+        max-height: 36vh;
         overflow-y: auto;
+        border-radius: 14px;
       }
-      #miniaturas:empty { display: none; }
       #miniaturas img {
         width: 100%;
         aspect-ratio: 1;
         object-fit: cover;
-        border-radius: 8px;
-        background: #1a1a1a;
+        border-radius: 10px;
+        background: #1a1a22;
       }
-      .form-check-input:checked { background-color: #ffc107; border-color: #ffc107; }
 
-      /* Carrossel em tela cheia */
+      /* Lista de ajustes */
+      .ajuste {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 16px;
+      }
+      .ajuste + .ajuste { border-top: 1px solid var(--borda); }
+      .icone {
+        flex: none;
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        border-radius: 11px;
+        font-size: 17px;
+      }
+      .icone.amarelo { background: rgba(255, 198, 92, .14); color: var(--amarelo); }
+      .icone.coral { background: rgba(255, 122, 89, .14); color: var(--coral); }
+      .icone.azul { background: rgba(76, 201, 240, .14); color: var(--azul); }
+      .ajuste .texto { flex: 1; min-width: 0; }
+      .ajuste .texto label { display: block; font-size: 15px; font-weight: 500; }
+      .ajuste .texto small { display: block; color: var(--texto-2); font-size: 12.5px; }
+      .ajuste .form-select {
+        width: auto;
+        padding: 6px 30px 6px 12px;
+        border-radius: 12px;
+        border: 1px solid var(--borda);
+        background-color: rgba(255, 255, 255, .06);
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .ajuste .form-switch { margin: 0; padding: 0; min-height: 0; }
+      .ajuste .form-check-input {
+        width: 46px;
+        height: 28px;
+        margin: 0;
+        border: 0;
+        background-color: rgba(255, 255, 255, .14);
+        cursor: pointer;
+      }
+      .ajuste .form-check-input:focus { box-shadow: none; }
+      .ajuste .form-check-input:checked { background-color: var(--coral); }
+
+      /* Cartao de instalar */
+      #cartaoInstalar { display: flex; align-items: center; gap: 14px; padding: 16px; margin-top: 24px; }
+      #cartaoInstalar[hidden] { display: none; }
+      #cartaoInstalar .texto { flex: 1; min-width: 0; }
+      #cartaoInstalar strong { display: block; font-size: 15px; }
+      #cartaoInstalar small { color: var(--texto-2); font-size: 12.5px; }
+      #instalar { border-radius: 999px; font-weight: 600; padding: 8px 16px; white-space: nowrap; }
+
+      .versao { text-align: center; color: #4a4a58; font-size: 12px; margin: 22px 0 0; }
+
+      /* Barra de baixo com o botao de comecar */
+      .barra-acao {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 14px 16px max(16px, env(safe-area-inset-bottom));
+        background: linear-gradient(transparent, var(--fundo) 40%);
+        z-index: 10;
+      }
+      #ok {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        max-width: 408px;
+        margin: 0 auto;
+        padding: 16px;
+        border: 0;
+        border-radius: 18px;
+        background: var(--destaque);
+        color: #1b1b22;
+        font-size: 17px;
+        font-weight: 700;
+        box-shadow: 0 10px 30px rgba(255, 122, 89, .35);
+        transition: transform .15s, opacity .2s;
+      }
+      #ok:active { transform: scale(.98); }
+      #ok:disabled { opacity: 1; background: rgba(255, 255, 255, .08); color: var(--texto-2); box-shadow: none; }
+      #ok i { font-size: 22px; line-height: 1; }
+
+      /* ---- Carrossel em tela cheia ---- */
       #palco {
         position: fixed;
         inset: 0;
@@ -54,6 +236,7 @@
         overflow: hidden;
         display: none;
         touch-action: none;
+        z-index: 20;
       }
       #palco.ativo { display: block; }
       #faixa {
@@ -78,72 +261,137 @@
       /* Controles que aparecem ao tocar na tela */
       #controles {
         position: absolute;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        padding: 16px 16px max(20px, env(safe-area-inset-bottom));
-        background: linear-gradient(transparent, rgba(0, 0, 0, .7));
+        left: 50%;
+        bottom: max(24px, env(safe-area-inset-bottom));
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px;
+        border-radius: 999px;
+        background: rgba(20, 20, 26, .55);
+        border: 1px solid rgba(255, 255, 255, .12);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
         opacity: 0;
         pointer-events: none;
-        transition: opacity .25s;
+        transform: translate(-50%, 12px);
+        transition: opacity .25s, transform .25s;
       }
-      #palco.mostrar #controles { opacity: 1; pointer-events: auto; }
+      #palco.mostrar #controles { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+      #controles .btn {
+        width: 48px;
+        height: 48px;
+        padding: 0;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        font-size: 20px;
+      }
+      #contador { padding: 0 12px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; color: #fff; }
+
+      .modal-content { background: #17171f; border: 1px solid var(--borda); border-radius: 22px; }
+      .modal-header, .modal-footer { border-color: var(--borda); }
     </style>
   </head>
   <body>
-    <main id="inicio" class="container d-flex flex-column justify-content-center gap-3 text-center">
-      <h1 class="h3 fw-bold mb-0">Carrossel de Fotos</h1>
-      <p class="text-secondary mb-1">
-        Escolha as fotos da galeria e aperte OK. Elas passam uma de cada vez, da direita para a esquerda, em tela cheia.
-      </p>
+    <main id="inicio">
+      <header class="topo">
+        <img src="./icon.svg" alt="" />
+        <div>
+          <h1>Carrossel</h1>
+          <p>Suas fotos passando em tela cheia</p>
+        </div>
+      </header>
 
       <input id="arquivos" type="file" accept="image/*" multiple hidden />
-      <button id="escolher" type="button" class="btn btn-outline-light btn-lg w-100">
-        <i class="bi bi-images me-2"></i>Escolher fotos
+
+      <button id="escolher" type="button" class="cartao">
+        <div class="pilha" aria-hidden="true">
+          <span></span><span></span><span><i class="bi bi-plus-lg"></i></span>
+        </div>
+        <strong>Escolher fotos</strong>
+        <small>Toque para abrir a galeria</small>
       </button>
 
-      <div id="miniaturas"></div>
+      <section id="selecionadas" class="cartao" hidden>
+        <div class="cabecalho-fotos">
+          <strong><span id="contagem" class="contagem">0</span>fotos escolhidas</strong>
+          <button id="trocar" type="button" class="btn btn-sm btn-outline-light rounded-pill px-3">
+            <i class="bi bi-arrow-repeat me-1"></i>Trocar
+          </button>
+        </div>
+        <div id="miniaturas"></div>
+      </section>
 
-      <div class="text-start d-grid gap-3">
-        <div>
-          <label for="tempo" class="form-label mb-1">Velocidade</label>
-          <select id="tempo" class="form-select form-select-lg">
-            <option value="1">Muito rápida (1 s)</option>
-            <option value="2">Rápida (2 s)</option>
-            <option value="3">Um pouco rápida (3 s)</option>
-            <option value="4" selected>Normal (4 s)</option>
-            <option value="6">Devagar (6 s)</option>
-            <option value="8">Mais devagar (8 s)</option>
-            <option value="12">Bem devagar (12 s)</option>
+      <h2 class="titulo-secao">Ajustes</h2>
+      <section class="cartao">
+        <div class="ajuste">
+          <span class="icone amarelo"><i class="bi bi-speedometer2"></i></span>
+          <div class="texto">
+            <label for="tempo">Velocidade</label>
+            <small>Tempo de cada foto</small>
+          </div>
+          <select id="tempo" class="form-select">
+            <option value="1">1 s</option>
+            <option value="2">2 s</option>
+            <option value="3">3 s</option>
+            <option value="4" selected>4 s</option>
+            <option value="6">6 s</option>
+            <option value="8">8 s</option>
+            <option value="12">12 s</option>
           </select>
         </div>
-        <div class="form-check form-switch">
-          <input id="preencher" class="form-check-input" type="checkbox" role="switch" checked />
-          <label for="preencher" class="form-check-label">Preencher a tela (corta as bordas)</label>
+        <div class="ajuste">
+          <span class="icone coral"><i class="bi bi-arrows-fullscreen"></i></span>
+          <div class="texto">
+            <label for="preencher">Preencher a tela</label>
+            <small>Corta as bordas da foto</small>
+          </div>
+          <div class="form-check form-switch">
+            <input id="preencher" class="form-check-input" type="checkbox" role="switch" checked />
+          </div>
         </div>
-        <div class="form-check form-switch">
-          <input id="deslizar" class="form-check-input" type="checkbox" role="switch" />
-          <label for="deslizar" class="form-check-label">Passar deslizando, como na galeria</label>
+        <div class="ajuste">
+          <span class="icone azul"><i class="bi bi-arrow-left-right"></i></span>
+          <div class="texto">
+            <label for="deslizar">Deslizar</label>
+            <small>Passa para o lado, como na galeria</small>
+          </div>
+          <div class="form-check form-switch">
+            <input id="deslizar" class="form-check-input" type="checkbox" role="switch" />
+          </div>
         </div>
-      </div>
+      </section>
 
-      <button id="ok" type="button" class="btn btn-warning btn-lg w-100 fw-semibold" disabled>
-        <i class="bi bi-play-fill me-1"></i><span id="okTexto">OK</span>
-      </button>
-      <button id="instalar" type="button" class="btn btn-success btn-lg w-100">
-        <i class="bi bi-download me-2"></i>Baixar aplicativo
-      </button>
-      <p class="text-body-tertiary small mb-0">versão 6</p>
+      <section id="cartaoInstalar" class="cartao">
+        <span class="icone azul"><i class="bi bi-phone"></i></span>
+        <div class="texto">
+          <strong>Instale no celular</strong>
+          <small>Abre como app, até sem internet</small>
+        </div>
+        <button id="instalar" type="button" class="btn btn-light btn-sm">
+          <i class="bi bi-download me-1"></i>Baixar
+        </button>
+      </section>
+
+      <p class="versao">versão 7</p>
+
+      <div class="barra-acao">
+        <button id="ok" type="button" disabled>
+          <i class="bi bi-play-circle-fill"></i><span id="okTexto">Escolha as fotos</span>
+        </button>
+      </div>
     </main>
 
     <div id="palco" class="preencher">
       <div id="faixa"></div>
-      <div id="controles" class="d-flex justify-content-center gap-2">
-        <button id="pausar" type="button" class="btn btn-light rounded-pill px-4">
-          <i class="bi bi-pause-fill me-1"></i><span>Pausar</span>
+      <div id="controles">
+        <button id="pausar" type="button" class="btn btn-light" aria-label="Pausar">
+          <i class="bi bi-pause-fill"></i>
         </button>
-        <button id="sair" type="button" class="btn btn-outline-light rounded-pill px-4">
-          <i class="bi bi-x-lg me-1"></i>Sair
+        <span id="contador">1 / 1</span>
+        <button id="sair" type="button" class="btn btn-outline-light border-0" aria-label="Sair">
+          <i class="bi bi-x-lg"></i>
         </button>
       </div>
     </div>
@@ -169,7 +417,7 @@
             </ol>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-warning" data-bs-dismiss="modal">Entendi</button>
+            <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Entendi</button>
           </div>
         </div>
       </div>
@@ -200,6 +448,7 @@
       const esperaMs = () => Number(tempo.value) * 1000;
 
       $('escolher').addEventListener('click', () => arquivos.click());
+      $('trocar').addEventListener('click', () => arquivos.click());
 
       arquivos.addEventListener('change', () => {
         const novas = [...arquivos.files].filter((f) => f.type.startsWith('image/'));
@@ -209,8 +458,12 @@
         miniaturas.replaceChildren(
           ...urls.map((src) => Object.assign(new Image(), { src, loading: 'lazy', decoding: 'async' }))
         );
+        $('escolher').hidden = true;
+        $('selecionadas').hidden = false;
+        $('contagem').textContent = urls.length;
         ok.disabled = false;
-        $('okTexto').textContent = `OK (${urls.length} foto${urls.length > 1 ? 's' : ''})`;
+        $('okTexto').textContent = `Começar com ${urls.length} foto${urls.length > 1 ? 's' : ''}`;
+        arquivos.value = '';
       });
 
       preencher.addEventListener('change', () => palco.classList.toggle('preencher', preencher.checked));
@@ -226,7 +479,7 @@
         faixa.replaceChildren(...imgs);
         atual = 0;
         definirPausado(false);
-        inicio.classList.replace('d-flex', 'd-none');
+        inicio.classList.add('d-none');
         palco.classList.add('ativo');
         posicionar();
         palco.requestFullscreen?.().catch(() => {});
@@ -237,6 +490,7 @@
       function posicionar(animado = false) {
         faixa.classList.toggle('deslizando', animado);
         faixa.style.transform = `translate3d(${-atual * window.innerWidth}px,0,0)`;
+        $('contador').textContent = `${(atual % urls.length) + 1} / ${urls.length}`;
       }
 
       function agendar(extra = 0) {
@@ -271,7 +525,7 @@
         clearTimeout(proxima);
         palco.classList.remove('ativo', 'mostrar');
         faixa.replaceChildren();
-        inicio.classList.replace('d-none', 'd-flex');
+        inicio.classList.remove('d-none');
         if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
         travaTela?.release().catch(() => {});
         travaTela = null;
@@ -287,8 +541,8 @@
 
       function definirPausado(valor) {
         pausado = valor;
-        pausar.querySelector('i').className = `bi ${pausado ? 'bi-play-fill' : 'bi-pause-fill'} me-1`;
-        pausar.querySelector('span').textContent = pausado ? 'Continuar' : 'Pausar';
+        pausar.querySelector('i').className = `bi ${pausado ? 'bi-play-fill' : 'bi-pause-fill'}`;
+        pausar.setAttribute('aria-label', pausado ? 'Continuar' : 'Pausar');
       }
 
       pausar.addEventListener('click', () => {
@@ -310,8 +564,8 @@
       // ---- Baixar aplicativo ----
       // No Android/Chrome o navegador oferece a instalacao e o botao abre esse
       // pedido. No iPhone nao existe esse pedido, entao o botao mostra o passo a
-      // passo pelo Safari. Ja instalado, o botao some.
-      const instalar = $('instalar');
+      // passo pelo Safari. Ja instalado, o cartao some.
+      const cartaoInstalar = $('cartaoInstalar');
       let pedidoInstalacao = null;
 
       const jaInstalado = () =>
@@ -320,7 +574,7 @@
         /iphone|ipad|ipod/i.test(navigator.userAgent) ||
         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-      if (jaInstalado()) instalar.hidden = true;
+      if (jaInstalado()) cartaoInstalar.hidden = true;
 
       window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
@@ -328,10 +582,10 @@
       });
       window.addEventListener('appinstalled', () => {
         pedidoInstalacao = null;
-        instalar.hidden = true;
+        cartaoInstalar.hidden = true;
       });
 
-      instalar.addEventListener('click', async () => {
+      $('instalar').addEventListener('click', async () => {
         if (pedidoInstalacao) {
           pedidoInstalacao.prompt();
           await pedidoInstalacao.userChoice;
