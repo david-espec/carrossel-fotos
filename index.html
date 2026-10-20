@@ -70,8 +70,15 @@
       .opcoes { width: 100%; max-width: 340px; display: grid; gap: 14px; text-align: left; }
       .opcoes label { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; }
       .versao { color: #555; font-size: 12px; }
-      .opcoes output { min-width: 34px; text-align: right; color: #9a9a9a; }
-      .opcoes input[type='range'] { flex: 1; accent-color: #ffd166; }
+      .opcoes select {
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid #333;
+        background: #1a1a1a;
+        color: #f2f2f2;
+        font: inherit;
+        font-size: 15px;
+      }
       .opcoes input[type='checkbox'] { width: 22px; height: 22px; accent-color: #ffd166; }
 
       /* Carrossel em tela cheia */
@@ -119,6 +126,26 @@
         transition: opacity .25s;
       }
       #palco.mostrar #controles { opacity: 1; pointer-events: auto; }
+
+      /* Geracao do video para baixar */
+      #gerando {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        padding: 24px 16px;
+        background: #000;
+        text-align: center;
+      }
+      #gerando[hidden] { display: none; }
+      #gerando p { color: #9a9a9a; font-size: 14px; max-width: 320px; line-height: 1.4; }
+      #gerando strong { font-size: 18px; }
+      #barra { width: 100%; max-width: 340px; height: 8px; border-radius: 999px; background: #222; overflow: hidden; }
+      #barra div { height: 100%; width: 0; background: #ffd166; }
+      #previa { width: 100%; max-width: 200px; aspect-ratio: 9 / 16; border-radius: 12px; background: #111; }
       #controles button {
         padding: 12px 18px;
         border-radius: 999px;
@@ -141,13 +168,24 @@
       <div id="miniaturas"></div>
 
       <div class="opcoes">
-        <label>Tempo em cada foto <input id="tempo" type="range" min="2" max="15" value="4" /> <output id="tempoTexto">4 s</output></label>
+        <label>Velocidade
+          <select id="tempo">
+            <option value="1">Muito rápida (1 s)</option>
+            <option value="2">Rápida (2 s)</option>
+            <option value="3">Um pouco rápida (3 s)</option>
+            <option value="4" selected>Normal (4 s)</option>
+            <option value="6">Devagar (6 s)</option>
+            <option value="8">Mais devagar (8 s)</option>
+            <option value="12">Bem devagar (12 s)</option>
+          </select>
+        </label>
         <label>Preencher a tela (corta as bordas) <input id="preencher" type="checkbox" checked /></label>
         <label>Passar deslizando, como na galeria <input id="deslizar" type="checkbox" /></label>
       </div>
 
       <button id="ok" class="botao principal" disabled>OK</button>
-      <p class="versao">versão 4</p>
+      <button id="baixar" class="botao" disabled>Baixar como vídeo</button>
+      <p class="versao">versão 5</p>
     </main>
 
     <div id="palco" class="preencher">
@@ -156,6 +194,15 @@
         <button id="pausar">Pausar</button>
         <button id="sair">Sair</button>
       </div>
+    </div>
+
+    <div id="gerando" hidden>
+      <canvas id="previa" width="1080" height="1920"></canvas>
+      <strong id="gerandoTitulo">Gerando o vídeo…</strong>
+      <div id="barra"><div></div></div>
+      <p id="gerandoTexto">Deixe esta tela aberta: o vídeo é gravado no tempo real das fotos.</p>
+      <button id="salvar" class="botao principal" hidden>Salvar vídeo</button>
+      <button id="cancelar" class="botao">Cancelar</button>
     </div>
 
     <script>
@@ -181,8 +228,6 @@
       const DESLIZE_MS = 300; // igual a transicao de #faixa.deslizando
       const esperaMs = () => Number(tempo.value) * 1000;
 
-      tempo.addEventListener('input', () => ($('tempoTexto').textContent = `${tempo.value} s`));
-
       $('escolher').addEventListener('click', () => arquivos.click());
 
       arquivos.addEventListener('change', () => {
@@ -194,6 +239,7 @@
           ...urls.map((src) => Object.assign(new Image(), { src, loading: 'lazy', decoding: 'async' }))
         );
         ok.disabled = false;
+        $('baixar').disabled = false;
         ok.textContent = `OK (${urls.length} foto${urls.length > 1 ? 's' : ''})`;
       });
 
@@ -277,6 +323,147 @@
       });
       $('sair').addEventListener('click', sair);
 
+      // ---- Baixar como video ----
+      // As fotos sao desenhadas num canvas em pe (1080x1920), do mesmo jeito que
+      // passam na tela, e o MediaRecorder grava o canvas. Cada foto aparece uma
+      // vez, na ordem; o video termina na ultima.
+      const previa = $('previa');
+      const gerando = $('gerando');
+      const salvar = $('salvar');
+      let gravacao = null; // { gravador, cancelado } da geracao em andamento
+      let video = null; // { blob, nome }
+
+      $('baixar').addEventListener('click', gerarVideo);
+      $('cancelar').addEventListener('click', fecharGerando);
+      salvar.addEventListener('click', salvarVideo);
+
+      function formatoDoVideo() {
+        if (!window.MediaRecorder) return null;
+        const tipos = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
+        return tipos.find((t) => MediaRecorder.isTypeSupported(t)) ?? null;
+      }
+
+      function carregar(src) {
+        const img = new Image();
+        img.src = src;
+        return img.decode().then(() => img);
+      }
+
+      function desenharFoto(ctx, img, x) {
+        const { width: W, height: H } = ctx.canvas;
+        const escala = (preencher.checked ? Math.max : Math.min)(W / img.naturalWidth, H / img.naturalHeight);
+        const w = img.naturalWidth * escala;
+        const h = img.naturalHeight * escala;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, 0, W, H);
+        ctx.clip();
+        ctx.drawImage(img, x + (W - w) / 2, (H - h) / 2, w, h);
+        ctx.restore();
+      }
+
+      async function gerarVideo() {
+        const tipo = formatoDoVideo();
+        if (!tipo || !previa.captureStream) {
+          alert('Este navegador não consegue gerar vídeo. Tente pelo Chrome ou pelo Safari atualizado.');
+          return;
+        }
+        video = null;
+        salvar.hidden = true;
+        $('cancelar').textContent = 'Cancelar';
+        $('gerandoTitulo').textContent = 'Gerando o vídeo…';
+        $('gerandoTexto').textContent = 'Deixe esta tela aberta: o vídeo é gravado no tempo real das fotos.';
+        $('barra').firstElementChild.style.width = '0';
+        gerando.hidden = false;
+        manterTelaLigada();
+
+        const atualGravacao = (gravacao = { gravador: null, cancelado: false });
+        const fotos = await Promise.all(urls.map(carregar));
+        if (atualGravacao.cancelado) return;
+        const ctx = previa.getContext('2d');
+        const W = previa.width;
+        const espera = esperaMs();
+        const deslize = deslizar.checked ? DESLIZE_MS : 0;
+        const trecho = espera + deslize;
+        const total = fotos.length * espera + (fotos.length - 1) * deslize;
+
+        const gravador = new MediaRecorder(previa.captureStream(30), { mimeType: tipo, videoBitsPerSecond: 8_000_000 });
+        const pedacos = [];
+        atualGravacao.gravador = gravador;
+        gravador.ondataavailable = (e) => e.data.size && pedacos.push(e.data);
+        gravador.onstop = () => {
+          if (atualGravacao.cancelado) return;
+          const extensao = tipo.startsWith('video/mp4') ? 'mp4' : 'webm';
+          video = { blob: new Blob(pedacos, { type: tipo.split(';')[0] }), nome: `carrossel.${extensao}` };
+          $('gerandoTitulo').textContent = 'Vídeo pronto!';
+          $('gerandoTexto').textContent = 'Toque em Salvar vídeo para guardar no celular.';
+          salvar.hidden = false;
+          $('cancelar').textContent = 'Fechar';
+        };
+
+        const desenhar = (t) => {
+          ctx.fillStyle = '#000';
+          ctx.fillRect(0, 0, W, previa.height);
+          const i = Math.min(Math.floor(t / trecho), fotos.length - 1);
+          const dentro = t - i * trecho;
+          if (dentro <= espera || i === fotos.length - 1) {
+            desenharFoto(ctx, fotos[i], 0);
+          } else {
+            const p = (dentro - espera) / deslize;
+            const suave = 1 - Math.pow(1 - p, 3);
+            desenharFoto(ctx, fotos[i], -suave * W);
+            desenharFoto(ctx, fotos[i + 1], (1 - suave) * W);
+          }
+        };
+
+        desenhar(0);
+        gravador.start(1000);
+        const inicioGravacao = performance.now();
+        const quadro = () => {
+          if (atualGravacao.cancelado) return;
+          const t = performance.now() - inicioGravacao;
+          desenhar(Math.min(t, total));
+          $('barra').firstElementChild.style.width = `${Math.min(100, (t / total) * 100)}%`;
+          if (t < total) requestAnimationFrame(quadro);
+          else setTimeout(() => gravador.state !== 'inactive' && gravador.stop(), 200);
+        };
+        requestAnimationFrame(quadro);
+      }
+
+      function fecharGerando() {
+        if (gravacao) {
+          gravacao.cancelado = !video;
+          if (gravacao.gravador && gravacao.gravador.state !== 'inactive') gravacao.gravador.stop();
+          gravacao = null;
+        }
+        gerando.hidden = true;
+        travaTela?.release().catch(() => {});
+        travaTela = null;
+      }
+
+      // No celular, compartilhar abre a opcao "Salvar video" direto na galeria.
+      // Onde nao da, baixa o arquivo.
+      async function salvarVideo() {
+        if (!video) return;
+        const arquivo = new File([video.blob], video.nome, { type: video.blob.type });
+        if (navigator.canShare?.({ files: [arquivo] })) {
+          try {
+            await navigator.share({ files: [arquivo] });
+            return;
+          } catch (e) {
+            if (e.name === 'AbortError') return;
+          }
+        }
+        const link = Object.assign(document.createElement('a'), {
+          href: URL.createObjectURL(video.blob),
+          download: video.nome,
+        });
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(link.href), 60_000);
+      }
+
       // Mantem a tela acesa enquanto as fotos passam (onde o navegador permitir).
       async function manterTelaLigada() {
         try {
@@ -284,7 +471,8 @@
         } catch {}
       }
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && palco.classList.contains('ativo')) manterTelaLigada();
+        const emUso = palco.classList.contains('ativo') || !gerando.hidden;
+        if (document.visibilityState === 'visible' && emUso) manterTelaLigada();
       });
     </script>
   </body>
