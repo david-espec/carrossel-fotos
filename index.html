@@ -91,7 +91,6 @@
         display: flex;
         will-change: transform;
       }
-      #faixa.deslizando { transition: transform .9s cubic-bezier(.45, 0, .2, 1); }
       #faixa img {
         flex: none;
         width: 100vw;
@@ -174,7 +173,6 @@
       let travaTela = null;
       let esconderControles = 0;
 
-      const DESLIZE_MS = 900; // igual a transicao de #faixa.deslizando
       const esperaMs = () => Number(tempo.value) * 1000;
 
       tempo.addEventListener('input', () => ($('tempoTexto').textContent = `${tempo.value} s`));
@@ -198,9 +196,7 @@
       ok.addEventListener('click', comecar);
 
       function comecar() {
-        // A primeira foto vai de novo no fim da faixa: depois da ultima, a
-        // faixa desliza ate essa copia e volta ao inicio sem ninguem ver o salto.
-        const imgs = [...urls, urls[0]].map((src) =>
+        const imgs = urls.map((src) =>
           Object.assign(new Image(), { src, decoding: 'async', draggable: false })
         );
         faixa.replaceChildren(...imgs);
@@ -209,37 +205,30 @@
         pausar.textContent = 'Pausar';
         inicio.hidden = true;
         palco.classList.add('ativo');
-        posicionar(false);
+        posicionar();
         palco.requestFullscreen?.().catch(() => {});
         manterTelaLigada();
         agendar();
       }
 
-      function posicionar(animado) {
-        faixa.classList.toggle('deslizando', animado);
+      // A troca e instantanea: a faixa pula direto para a foto da vez.
+      function posicionar() {
         faixa.style.transform = `translate3d(${-atual * window.innerWidth}px,0,0)`;
       }
 
-      // A espera so comeca a contar depois que a foto termina de deslizar.
-      function agendar(extra = 0) {
+      function agendar() {
         clearTimeout(proxima);
-        if (!pausado && urls.length > 1) proxima = setTimeout(avancar, esperaMs() + extra);
+        if (!pausado && urls.length > 1) proxima = setTimeout(avancar, esperaMs());
       }
 
+      // Depois da ultima foto, volta para a primeira.
       function avancar() {
-        atual += 1;
-        posicionar(true);
-        agendar(DESLIZE_MS);
+        atual = (atual + 1) % urls.length;
+        posicionar();
+        agendar();
       }
 
-      faixa.addEventListener('transitionend', () => {
-        if (atual === urls.length) {
-          atual = 0;
-          posicionar(false);
-        }
-      });
-
-      window.addEventListener('resize', () => palco.classList.contains('ativo') && posicionar(false));
+      window.addEventListener('resize', () => palco.classList.contains('ativo') && posicionar());
 
       function sair() {
         clearTimeout(proxima);
