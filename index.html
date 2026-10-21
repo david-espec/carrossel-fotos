@@ -128,6 +128,24 @@
         font-size: 13px;
         font-weight: 700;
       }
+      .acoes-fotos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+      .acoes-fotos .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 9px 6px;
+        border-radius: 14px;
+        border: 1px solid var(--borda);
+        background: rgba(255, 255, 255, .06);
+        color: #f2f2f2;
+        font-size: 14px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .acoes-fotos .btn:active { transform: scale(.97); }
+      #limpar { color: #ff8a80; }
+      #selecionadas.editando #editar { background: #f2f2f2; color: #1b1b22; }
       #miniaturas {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -361,16 +379,14 @@
       <section id="selecionadas" class="cartao" hidden>
         <div class="cabecalho-fotos">
           <strong><span id="contagem" class="contagem">0</span><span id="contagemTexto">fotos</span></strong>
-          <div class="d-flex gap-2">
-            <button id="editar" type="button" class="btn btn-sm btn-outline-light rounded-pill px-3">
-              <i class="bi bi-pencil me-1"></i><span>Editar</span>
-            </button>
-            <button id="trocar" type="button" class="btn btn-sm btn-outline-light rounded-pill px-3">
-              <i class="bi bi-arrow-repeat me-1"></i>Trocar
-            </button>
-          </div>
+          <small id="guardadas" class="text-secondary" hidden><i class="bi bi-phone me-1"></i>Salvas no celular</small>
         </div>
         <div id="miniaturas"></div>
+        <div class="acoes-fotos">
+          <button id="adicionar" type="button" class="btn"><i class="bi bi-plus-lg"></i>Adicionar</button>
+          <button id="editar" type="button" class="btn"><i class="bi bi-pencil"></i><span>Editar</span></button>
+          <button id="limpar" type="button" class="btn"><i class="bi bi-trash3"></i>Limpar</button>
+        </div>
       </section>
 
       <h2 class="titulo-secao">Ajustes</h2>
@@ -424,7 +440,7 @@
         </button>
       </section>
 
-      <p class="versao">versão 9</p>
+      <p class="versao">versão 10</p>
 
       <div class="barra-acao">
         <button id="ok" type="button" disabled>
@@ -449,6 +465,24 @@
         <button id="sair" type="button" class="btn btn-outline-light border-0" aria-label="Sair">
           <i class="bi bi-x-lg"></i>
         </button>
+      </div>
+    </div>
+
+    <div id="confirmarLimpar" class="modal fade" tabindex="-1" aria-labelledby="confirmarLimparTitulo" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-body text-center p-4">
+            <div class="icone coral mx-auto mb-3" style="width: 52px; height: 52px; font-size: 22px; border-radius: 16px">
+              <i class="bi bi-trash3"></i>
+            </div>
+            <h2 id="confirmarLimparTitulo" class="h5 fw-bold">Limpar todas as fotos?</h2>
+            <p class="text-secondary mb-0"><span id="limparTexto">As fotos</span> saem do app. Elas continuam na galeria do celular.</p>
+          </div>
+          <div class="modal-footer justify-content-center gap-2">
+            <button type="button" class="btn btn-outline-light rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+            <button id="limparTudo" type="button" class="btn btn-danger rounded-pill px-4">Limpar tudo</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -493,7 +527,9 @@
       const deslizar = $('deslizar');
       const pausar = $('pausar');
 
-      let urls = [];
+      let fotos = []; // { id, url } na ordem em que foram escolhidas
+      let urls = []; // so as urls, que e o que o carrossel usa
+      let fotosGuardadas = false; // true quando as fotos ficam salvas no aparelho
       let atual = 0; // indice da foto na tela
       let pausado = false;
       let proxima = 0;
@@ -503,20 +539,78 @@
       const DESLIZE_MS = 300; // igual a transicao de #faixa.deslizando
       const esperaMs = () => Number(tempo.value) * 1000;
 
-      $('escolher').addEventListener('click', () => arquivos.click());
-      $('trocar').addEventListener('click', () => arquivos.click());
+      // ---- Fotos guardadas no aparelho ----
+      // As fotos escolhidas ficam no IndexedDB do navegador, entao continuam la
+      // quando o app e fechado e aberto de novo. Nada sai do celular. Se o
+      // navegador nao deixar guardar, o app funciona so com a memoria.
+      const banco = new Promise((resolve, reject) => {
+        const pedido = indexedDB.open('carrossel', 1);
+        pedido.onupgradeneeded = () => pedido.result.createObjectStore('fotos', { keyPath: 'id', autoIncrement: true });
+        pedido.onsuccess = () => resolve(pedido.result);
+        pedido.onerror = () => reject(pedido.error);
+      });
 
-      arquivos.addEventListener('change', () => {
+      async function noBanco(modo, fazer) {
+        const db = await banco;
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction('fotos', modo);
+          const resultado = fazer(tx.objectStore('fotos'));
+          tx.oncomplete = () => resolve(resultado?.result ?? resultado);
+          tx.onerror = () => reject(tx.error);
+        });
+      }
+
+      async function guardar(arquivosNovos) {
+        try {
+          const db = await banco;
+          const ids = await new Promise((resolve, reject) => {
+            const tx = db.transaction('fotos', 'readwrite');
+            const loja = tx.objectStore('fotos');
+            const pedidos = arquivosNovos.map((f) => loja.add({ blob: new Blob([f], { type: f.type }) }));
+            tx.oncomplete = () => resolve(pedidos.map((p) => p.result));
+            tx.onerror = () => reject(tx.error);
+          });
+          fotosGuardadas = true;
+          return ids;
+        } catch {
+          fotosGuardadas = false;
+          return arquivosNovos.map(() => null);
+        }
+      }
+
+      async function carregarGuardadas() {
+        try {
+          const salvas = await noBanco('readonly', (loja) => loja.getAll());
+          fotosGuardadas = true;
+          fotos = salvas.map((f) => ({ id: f.id, url: URL.createObjectURL(f.blob) }));
+        } catch {
+          fotosGuardadas = false;
+        }
+        mostrarFotos();
+      }
+
+      const apagar = (id) => id != null && noBanco('readwrite', (loja) => loja.delete(id)).catch(() => {});
+      const apagarTodas = () => noBanco('readwrite', (loja) => loja.clear()).catch(() => {});
+
+      // Pede para o navegador nao apagar as fotos guardadas quando faltar espaco.
+      navigator.storage?.persist?.().catch(() => {});
+
+      $('escolher').addEventListener('click', () => arquivos.click());
+      $('adicionar').addEventListener('click', () => arquivos.click());
+
+      // Fotos novas entram no fim da lista, junto das que ja estavam.
+      arquivos.addEventListener('change', async () => {
         const novas = [...arquivos.files].filter((f) => f.type.startsWith('image/'));
+        arquivos.value = '';
         if (!novas.length) return;
-        urls.forEach((u) => URL.revokeObjectURL(u));
-        urls = novas.map((f) => URL.createObjectURL(f));
+        const ids = await guardar(novas);
+        fotos.push(...novas.map((f, i) => ({ id: ids[i], url: URL.createObjectURL(f) })));
         definirEditando(false);
         mostrarFotos();
-        arquivos.value = '';
       });
 
       function mostrarFotos() {
+        urls = fotos.map((f) => f.url);
         miniaturas.replaceChildren(
           ...urls.map((src, i) => {
             const caixa = document.createElement('div');
@@ -531,6 +625,7 @@
         $('selecionadas').hidden = !tem;
         $('contagem').textContent = urls.length;
         $('contagemTexto').textContent = urls.length === 1 ? 'foto' : 'fotos';
+        $('guardadas').hidden = !fotosGuardadas;
         ok.disabled = !tem;
         $('okTexto').textContent = tem
           ? `Começar com ${urls.length} foto${urls.length > 1 ? 's' : ''}`
@@ -540,7 +635,7 @@
       // Editar: cada miniatura ganha um X para tirar a foto da lista.
       function definirEditando(valor) {
         $('selecionadas').classList.toggle('editando', valor);
-        $('editar').querySelector('i').className = `bi ${valor ? 'bi-check-lg' : 'bi-pencil'} me-1`;
+        $('editar').querySelector('i').className = `bi ${valor ? 'bi-check-lg' : 'bi-pencil'}`;
         $('editar').querySelector('span').textContent = valor ? 'Concluir' : 'Editar';
       }
 
@@ -551,11 +646,49 @@
       miniaturas.addEventListener('click', (e) => {
         const botao = e.target.closest('.remover');
         if (!botao) return;
-        const [removida] = urls.splice(Number(botao.dataset.i), 1);
-        URL.revokeObjectURL(removida);
-        if (!urls.length) definirEditando(false);
+        const [removida] = fotos.splice(Number(botao.dataset.i), 1);
+        URL.revokeObjectURL(removida.url);
+        apagar(removida.id);
+        if (!fotos.length) definirEditando(false);
         mostrarFotos();
       });
+
+      // Limpar: tira todas as fotos de uma vez, depois de confirmar.
+      const confirmarLimpar = () => bootstrap.Modal.getOrCreateInstance($('confirmarLimpar'));
+      $('limpar').addEventListener('click', () => {
+        $('limparTexto').textContent = fotos.length === 1 ? 'A foto' : `As ${fotos.length} fotos`;
+        confirmarLimpar().show();
+      });
+      $('limparTudo').addEventListener('click', () => {
+        fotos.forEach((f) => URL.revokeObjectURL(f.url));
+        fotos = [];
+        apagarTodas();
+        definirEditando(false);
+        mostrarFotos();
+        confirmarLimpar().hide();
+      });
+
+      // Os ajustes tambem ficam lembrados.
+      const ajustes = { tempo, preencher, deslizar };
+      try {
+        const lembrados = JSON.parse(localStorage.getItem('carrossel-ajustes') || '{}');
+        if (lembrados.tempo) tempo.value = lembrados.tempo;
+        if (typeof lembrados.preencher === 'boolean') preencher.checked = lembrados.preencher;
+        if (typeof lembrados.deslizar === 'boolean') deslizar.checked = lembrados.deslizar;
+      } catch {}
+      palco.classList.toggle('preencher', preencher.checked);
+      Object.values(ajustes).forEach((campo) =>
+        campo.addEventListener('change', () => {
+          try {
+            localStorage.setItem(
+              'carrossel-ajustes',
+              JSON.stringify({ tempo: tempo.value, preencher: preencher.checked, deslizar: deslizar.checked })
+            );
+          } catch {}
+        })
+      );
+
+      carregarGuardadas();
 
       preencher.addEventListener('change', () => palco.classList.toggle('preencher', preencher.checked));
 
@@ -694,8 +827,9 @@
       // ---- Atualizacao automatica ----
       // A publicacao troca o marcador abaixo pelo codigo do commit e grava o mesmo
       // codigo em versao.txt. Quando o app abre ou volta para a tela, compara
-      // os dois: se mudou, recarrega sozinho. Com fotos escolhidas, recarregar
-      // perderia a selecao, entao so mostra o aviso com o botao Atualizar.
+      // os dois: se mudou, recarrega sozinho (as fotos estao guardadas e voltam).
+      // Se o navegador nao deixou guardar as fotos, recarregar perderia a
+      // selecao, entao so mostra o aviso com o botao Atualizar.
       const VERSAO = '__VERSAO__';
 
       async function verificarVersao() {
@@ -705,8 +839,9 @@
           if (!r.ok) return;
           const publicada = (await r.text()).trim();
           if (!publicada || publicada === VERSAO) return;
-          if (!urls.length && !palco.classList.contains('ativo')) location.reload();
-          else $('aviso').hidden = palco.classList.contains('ativo');
+          if (palco.classList.contains('ativo')) return; // confere de novo ao sair
+          if (fotosGuardadas || !urls.length) location.reload();
+          else $('aviso').hidden = false;
         } catch {}
       }
 

@@ -5,6 +5,8 @@ vez, da direita para a esquerda, em tela cheia: cada foto fica um tempo na tela
 e troca direto para a próxima, sem animação (ou, se preferir, desliza rápido
 como na galeria do celular). Depois da última, volta para a primeira.
 
+- As fotos escolhidas ficam salvas no celular: fechando e abrindo o app, elas continuam lá.
+  **Adicionar** junta fotos novas, **Editar** tira uma por uma e **Limpar** tira todas.
 - Toque na tela para **Pausar** ou **Sair**.
 - Escolha a velocidade (quanto tempo cada foto fica na tela) e se a foto deve preencher a tela.
 - **Baixar aplicativo** instala o Carrossel no celular. No Android abre o pedido de instalação; no iPhone mostra o passo a passo pelo Safari. Instalado, funciona até sem internet.
